@@ -1,7 +1,10 @@
 # Byte-compiled / optimized / DLL files
+flask.log
+nohup.out
 __pycache__/
 *.py[codz]
 *$py.class
+*.pyc
 
 # C extensions
 *.so
