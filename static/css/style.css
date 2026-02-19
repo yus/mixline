@@ -1,0 +1,136 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+    background: #1a1a1a;
+    color: #00ff00;
+    overflow: hidden;
+}
+
+.toolbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    background: #2a2a2a;
+    border-bottom: 1px solid #00ff00;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 10px;
+    z-index: 100;
+}
+
+.toolbar button {
+    background: #1a1a1a;
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    padding: 5px 15px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.toolbar button:hover {
+    background: #00ff00;
+    color: #1a1a1a;
+}
+
+.canvas-container {
+    position: fixed;
+    top: 50px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    background: #111;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+}
+
+canvas:active {
+    cursor: grabbing;
+}
+
+.node {
+    position: absolute;
+    background: #2a2a2a;
+    border: 1px solid #00ff00;
+    border-radius: 5px;
+    padding: 10px;
+    min-width: 150px;
+    user-select: none;
+    box-shadow: 0 0 10px rgba(0,255,0,0.1);
+}
+
+.node.selected {
+    border: 2px solid #00ff00;
+    box-shadow: 0 0 20px rgba(0,255,0,0.3);
+}
+
+.node-header {
+    padding: 5px;
+    margin: -10px -10px 10px -10px;
+    background: #00ff00;
+    color: #1a1a1a;
+    font-weight: bold;
+    cursor: move;
+    border-radius: 4px 4px 0 0;
+}
+
+.node-port {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 5px 0;
+    font-size: 11px;
+}
+
+.port {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #00ff00;
+    cursor: crosshair;
+}
+
+.port.input { background: #ffaa00; }
+.port.output { background: #00ff00; }
+
+.grid-dot {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: #00ff00;
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+#status {
+    margin-left: auto;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.minimap {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 200px;
+    height: 150px;
+    background: #2a2a2a;
+    border: 1px solid #00ff00;
+    opacity: 0.5;
+    pointer-events: none;
+}
