@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>UQD Audio Lab · Quantum Lens Filter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #121212;
+            font-family: 'Segoe UI', 'Roboto Mono', system-ui, monospace;
+            font-size: 12px;
+            color: #cccccc;
+            padding: 12px;
+        }
+        .lab-container {
+            max-width: 720px;
+            margin: 0 auto;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 12px;
+        }
+        /* 2px rounding only */
+        button, select, input, .lab-card, canvas, .file-label {
+            border-radius: 2px !important;
+        }
+        /* headers */
+        h1 {
+            font-size: 18px;
+            font-weight: 500;
+            letter-spacing: -0.5px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 6px;
+            margin-bottom: 12px;
+            color: #dd8800;
+        }
+        h2 {
+            font-size: 14px;
+            margin: 12px 0 6px;
+            font-weight: 500;
+        }
+        .mode-row {
+            display: flex;
+            gap: 8px;
+            margin: 12px 0;
+            border-bottom: 1px solid #2a2a2a;
+            padding-bottom: 8px;
+        }
+        .mode-btn {
+            background: #2a2a2a;
+            border: none;
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            color: #aaa;
+            transition: none;
+        }
+        .mode-btn.active {
+            background: #dd8800;
+            color: #121212;
+        }
+        .param-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 10px 0;
+            align-items: center;
+        }
+        .param-group {
+            flex: 1;
+            min-width: 130px;
+        }
+        label {
+            display: block;
+            font-size: 10px;
+            color: #888;
+            margin-bottom: 2px;
+        }
+        input, select {
+            width: 100%;
+            background: #2d2d2d;
+            border: 1px solid #3a3a3a;
+            padding: 6px;
+            color: #ddd;
+            font-size: 11px;
+        }
+        input[type="range"] {
+            padding: 0;
+        }
+        button {
+            background: #2d2d2d;
+            border: 1px solid #3a3a3a;
+            padding: 8px 12px;
+            cursor: pointer;
+            color: #ccc;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        button.primary {
+            background: #dd8800;
+            border-color: #aa6600;
+            color: #121212;
+        }
+        .file-area {
+            margin: 12px 0;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .file-label {
+            background: #2d2d2d;
+            padding: 6px 12px;
+            cursor: pointer;
+            display: inline-block;
+            font-size: 11px;
+        }
+        #fileStatus {
+            font-size: 10px;
+            color: #888;
+        }
+        .two-col {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin: 16px 0;
+        }
+        .occlusion-area {
+            flex: 1;
+            min-width: 140px;
+        }
+        .plot-area {
+            flex: 2;
+            min-width: 240px;
+        }
+        .occ-canvas {
+            width: 128px;
+            height: 128px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            margin-top: 6px;
+        }
+        canvas {
+            display: block;
+        }
+        #transferCanvas {
+            width: 100%;
+            height: auto;
+            background: #0a0a0a;
+            border: 1px solid #2a2a2a;
+        }
+        .status-text {
+            background: #0f0f0f;
+            padding: 6px;
+            font-size: 10px;
+            margin: 8px 0;
+            border-left: 2px solid #dd8800;
+        }
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 9px;
+            color: #555;
+            border-top: 1px solid #222;
+            padding-top: 10px;
+        }
+        audio {
+            width: 100%;
+            margin: 8px 0;
+        }
+        a {
+            color: #dd8800;
+            text-decoration: none;
+        }
+        @media (max-width: 560px) {
+            .two-col { flex-direction: column; }
+            .occ-canvas { width: 100%; height: auto; aspect-ratio: 1/1; }
+        }
+    </style>
+</head>
+<body>
+<div class="lab-container">
+    <h1>⚛️ UQD AUDIO LAB · QUANTUM LENS</h1>
+    <div class="mode-row">
+        <button class="mode-btn active" data-mode="lens">🧹 LENS MODE (clean)</button>
+        <button class="mode-btn" data-mode="barrier">⚡ BARRIER MODE (divergent)</button>
+    </div>
+
+    <div class="two-col">
+        <!-- LEFT: MATERIAL + OCCLUSION (square preview) -->
+        <div class="occlusion-area">
+            <h2>📡 LENS MATERIAL</h2>
+            <select id="materialSelect">
+                <option value="cr39">CR-39 (n=1.498, T₀=92%)</option>
+                <option value="polycarb">Polycarbonate (n=1.586, T₀=89%)</option>
+                <option value="highindex" selected>High-index (n=1.67, T₀=98.5%)</option>
+                <option value="crown">Crown Glass (n=1.523, T₀=99.2%)</option>
+                <option value="flint">Flint Glass (n=1.805, T₀=97%)</option>
+            </select>
+            <div class="param-group" style="margin-top: 8px;">
+                <label>🔹 n (real) / thickness / coating</label>
+                <div class="param-row" style="gap:6px;">
+                    <input type="range" id="nSlider" min="1.4" max="2.1" step="0.01" value="1.67" style="flex:2">
+                    <input type="range" id="thickSlider" min="0.8" max="8" step="0.1" value="2.2" style="flex:1">
+                </div>
+            </div>
+            <h2 style="margin-top:12px;">📸 OCCLUSION MAP</h2>
+            <canvas id="occCanvas" width="128" height="128" class="occ-canvas"></canvas>
+            <div style="margin-top: 6px;">
+                <label>📤 upload real lens image (max 256x256)</label>
+                <input type="file" id="occUpload" accept="image/jpeg,image/png" style="margin-top: 4px;">
+            </div>
+            <div class="status-text" style="margin-top: 8px;">placeholder texture · upload to replace</div>
+        </div>
+
+        <!-- RIGHT: FILTER PARAMS + PLOT -->
+        <div class="plot-area">
+            <h2>🎛️ FILTER PROFILE</h2>
+            <div class="param-row">
+                <div class="param-group"><label>✂️ cutoff (Hz)</label><input type="range" id="cutoffSlider" min="200" max="10000" value="3800"></div>
+                <div class="param-group" id="sharpnessGroup"><label>⚡ sharpness p</label><input type="range" id="sharpSlider" min="0.3" max="2.2" step="0.01" value="1.0"></div>
+                <div class="param-group"><label>💠 coating (%)</label><input type="range" id="coatingSlider" min="0.1" max="4.5" step="0.1" value="0.8"></div>
+            </div>
+            <canvas id="transferCanvas" width="600" height="200" style="width:100%; height:auto; background:#0a0a0a;"></canvas>
+            <!-- playhead indicator (simple dot on plot) -->
+            <div id="playheadStatus" class="status-text" style="margin-top: 6px;">▶️ playhead: — (load audio)</div>
+        </div>
+    </div>
+
+    <!-- FILE & PROCESSING -->
+    <div class="file-area">
+        <label class="file-label">📁 select WAV</label>
+        <input type="file" id="audioFile" accept=".wav,.WAV,audio/wav" style="display:none;">
+        <button id="triggerFileBtn">browse</button>
+        <span id="fileStatus">no file</span>
+    </div>
+    <button id="processBtn" class="primary">🌀 APPLY QUANTUM FILTER</button>
+    <div id="progress" style="display:none;" class="status-text">processing…</div>
+    <div id="result"></div>
+    <footer>UQD Audio Lab · Fresnel + τ^(d/10) · occlusion: real lens micrograph → audio texture mapping</footer>
+</div>
+
+<script>
+    (function(){
+        // ----------------- OPTICS ENGINE (from Aalener) -----------------
+        const Optics = {
+            fresnelR: (n1,n2) => { let r=(n1-n2)/(n1+n2); return r*r; },
+            materialT: (t0_percent, d_mm) => { if(t0_percent<=0) return 0; return Math.pow(t0_percent/100, d_mm/10); },
+            lensTransmission: (n_lens, thick_mm, t0_percent, coat_res) => {
+                const n_air=1.0;
+                let R1=Optics.fresnelR(n_air, n_lens);
+                let coatFact=Math.max(0.05, 1-(coat_res/100));
+                let T1=1-(R1*coatFact);
+                let Tmat=Optics.materialT(t0_percent, thick_mm);
+                let R2=Optics.fresnelR(n_lens, n_air);
+                let T2=1-(R2*coatFact);
+                return T1*Tmat*T2;
+            }
+        };
+
+        // DOM elements
+        const modeBtns = document.querySelectorAll('.mode-btn');
+        const materialSelect = document.getElementById('materialSelect');
+        const nSlider = document.getElementById('nSlider');
+        const thickSlider = document.getElementById('thickSlider');
+        const cutoffSlider = document.getElementById('cutoffSlider');
+        const sharpSlider = document.getElementById('sharpSlider');
+        const coatingSlider = document.getElementById('coatingSlider');
+        const occUpload = document.getElementById('occUpload');
+        const occCanvas = document.getElementById('occCanvas');
+        const transferCanvas = document.getElementById('transferCanvas');
+        const audioFileInput = document.getElementById('audioFile');
+        const triggerFileBtn = document.getElementById('triggerFileBtn');
+        const fileStatusSpan = document.getElementById('fileStatus');
+        const processBtn = document.getElementById('processBtn');
+        const progressDiv = document.getElementById('progress');
+        const resultDiv = document.getElementById('result');
+        const playheadSpan = document.getElementById('playheadStatus');
+
+        let currentMode = "lens";
+        let currentAudioBuffer = null;
+        let audioCtx = null;
+        let uploadedImageData = null; // for occlusion override
+
+        // Material presets
+        const materialDB = {
+            cr39: { n:1.498, t0:92, coatingRec:1.2 },
+            polycarb: { n:1.586, t0:89, coatingRec:1.5 },
+            highindex: { n:1.67, t0:98.5, coatingRec:0.7 },
+            crown: { n:1.523, t0:99.2, coatingRec:0.9 },
+            flint: { n:1.805, t0:97, coatingRec:1.8 }
+        };
+
+        function updateMaterialFromSelect(){
+            let key = materialSelect.value;
+            let mat = materialDB[key];
+            if(mat){
+                nSlider.value = mat.n;
+                coatingSlider.value = mat.coatingRec;
+                // t0 not directly in UI slider but needed for optics; we'll add hidden param
+                document.getElementById('t0Display') ? null : null;
+                window._currentT0 = mat.t0;
+                drawOcclusionPlaceholder();
+            }
+        }
+        materialSelect.addEventListener('change', updateMaterialFromSelect);
+        nSlider.addEventListener('input', ()=>{
+            drawOcclusionPlaceholder();
+            if(window._updatePlot) window._updatePlot();
+        });
+        coatingSlider.addEventListener('input', ()=> { if(window._updatePlot) window._updatePlot(); });
+        thickSlider.addEventListener('input', ()=> { if(window._updatePlot) window._updatePlot(); });
+        cutoffSlider.addEventListener('input', ()=> { if(window._updatePlot) window._updatePlot(); });
+        sharpSlider.addEventListener('input', ()=> { if(window._updatePlot) window._updatePlot(); });
+
+        // Occlusion: placeholder procedural OR from uploaded image
+        function drawOcclusionPlaceholder(){
+            const ctx = occCanvas.getContext('2d');
+            const w = occCanvas.width = 128;
+            const h = occCanvas.height = 128;
+            ctx.fillStyle = "#1f1f1f";
+            ctx.fillRect(0,0,w,h);
+            let n = parseFloat(nSlider.value);
+            let seed = (n*100) % 23;
+            for(let i=0;i<400;i++){
+                let x = (i*131) % w;
+                let y = (Math.sin(i*0.37+seed)*30 + 64) % h;
+                ctx.fillStyle = `rgba(200,160,100,${0.1+Math.sin(i)*0.05})`;
+                ctx.fillRect(x,y,2,2);
+            }
+            ctx.fillStyle = "#aa8866";
+            ctx.font = "9px monospace";
+            ctx.fillText("placeholder", 8, 20);
+            if(uploadedImageData){
+                ctx.globalAlpha = 0.6;
+                ctx.drawImage(uploadedImageData, 0, 0, w, h);
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+        // handle uploaded occlusion image (max 256x256)
+        occUpload.addEventListener('change', (e)=>{
+            const file = e.target.files[0];
+            if(file && file.type.match('image.*')){
+                let img = new Image();
+                img.onload = ()=>{
+                    let canvas = document.createElement('canvas');
+                    let maxSize = 256;
+                    let w = img.width, h = img.height;
+                    if(w>maxSize || h>maxSize){
+                        if(w>h){ h = h * maxSize / w; w = maxSize; }
+                        else { w = w * maxSize / h; h = maxSize; }
+                    }
+                    canvas.width = w; canvas.height = h;
+                    let ctxTmp = canvas.getContext('2d');
+                    ctxTmp.drawImage(img,0,0,w,h);
+                    let newImg = new Image();
+                    newImg.src = canvas.toDataURL();
+                    uploadedImageData = newImg;
+                    drawOcclusionPlaceholder();
+                    fileStatusSpan.innerText = `occlusion: ${file.name}`;
+                };
+                img.src = URL.createObjectURL(file);
+            }
+        });
+
+        // Transfer function (mode aware)
+        function getTransferFunction(freq_hz, sr, params){
+            let cutoff = params.cutoff;
+            let sharp = params.sharpness;
+            let n_lens = params.n;
+            let thick = params.thickness;
+            let t0 = params.t0 || 98.5;
+            let coat = params.coating;
+            let T_optics = Optics.lensTransmission(n_lens, thick, t0, coat);
+            let f_norm = Math.min(1.0, freq_hz / cutoff);
+            let disp = 1 - 0.06*Math.sin(f_norm*Math.PI);
+            T_optics = T_optics * (0.94+0.06*disp);
+            if(currentMode === "lens"){
+                let rolloff = 1.0 / (1.0 + Math.pow(f_norm, 3.8));
+                let resonance = 1 + 0.1 * Math.exp(-Math.pow((freq_hz/cutoff-0.78)/0.12,2));
+                return Math.min(0.99, T_optics * rolloff * resonance);
+            } else {
+                let df = Math.abs(freq_hz - cutoff) / cutoff;
+                let safe = Math.max(df, 0.0005);
+                let barrier = 1.0 / Math.pow(safe, sharp);
+                let maxBar = 1.0 / Math.pow(0.0005, sharp);
+                barrier = barrier / (1 + barrier/maxBar);
+                return Math.min(0.99, T_optics * barrier);
+            }
+        }
+
+        // plot frequency response + simple playhead (x position simulated)
+        function plotTransfer(){
+            let params = {
+                cutoff: parseFloat(cutoffSlider.value),
+                sharpness: parseFloat(sharpSlider.value),
+                n: parseFloat(nSlider.value),
+                thickness: parseFloat(thickSlider.value),
+                t0: window._currentT0 || 98.5,
+                coating: parseFloat(coatingSlider.value)
+            };
+            let ctx = transferCanvas.getContext('2d');
+            let w = transferCanvas.width = Math.min(600, window.innerWidth-40);
+            let h = transferCanvas.height = 200;
+            ctx.fillStyle = "#0a0a0a";
+            ctx.fillRect(0,0,w,h);
+            ctx.beginPath();
+            let sr = 44100;
+            let first=true;
+            for(let i=0;i<=w;i++){
+                let freq = (i/w) * 12000;
+                let T = getTransferFunction(freq, sr, params);
+                let x = i;
+                let y = h-8 - (T * (h-20));
+                if(first){ ctx.moveTo(x,y); first=false; }
+                else ctx.lineTo(x,y);
+            }
+            ctx.strokeStyle = currentMode === "lens" ? "#88dd88" : "#dd8800";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = "#aaa";
+            ctx.font="9px monospace";
+            ctx.fillText(`cutoff ${params.cutoff} Hz  mode:${currentMode}`, 10, h-4);
+            window._updatePlot = ()=>plotTransfer();
+        }
+
+        // convolution filter (simplified overlap-add)
+        async function applyFilter(audioBuffer, params){
+            const sr = audioBuffer.sampleRate;
+            let channel = audioBuffer.getChannelData(0);
+            let len = channel.length;
+            const fftSize = 4096;
+            let filterFreq = new Array(fftSize/2+1);
+            for(let i=0;i<=fftSize/2;i++){
+                let freq = i * sr / fftSize;
+                filterFreq[i] = getTransferFunction(freq, sr, params);
+            }
+            let filterIR = new Array(fftSize);
+            for(let i=0;i<=fftSize/2;i++){
+                filterIR[i]=filterFreq[i];
+                if(i>0 && i<fftSize/2) filterIR[fftSize-i]=filterFreq[i];
+            }
+            let output = new Float32Array(len);
+            let hop = fftSize/2;
+            for(let start=0; start<len-fftSize; start+=hop){
+                for(let j=0;j<fftSize;j++){
+                    output[start+j] += channel[start+j] * filterIR[j];
+                }
+            }
+            let max=0;
+            for(let v of output) if(Math.abs(v)>max) max=Math.abs(v);
+            if(max>0.9) for(let i=0;i<len;i++) output[i]*=0.85/max;
+            return output;
+        }
+
+        // UI helpers
+        triggerFileBtn.onclick = ()=> audioFileInput.click();
+        audioFileInput.onchange = async (e)=>{
+            let file = e.target.files[0];
+            if(!file) return;
+            fileStatusSpan.innerText = file.name;
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            let buf = await file.arrayBuffer();
+            currentAudioBuffer = await audioCtx.decodeAudioData(buf);
+            fileStatusSpan.innerText = `✓ ${file.name}  ${currentAudioBuffer.duration.toFixed(1)}s`;
+            let origPlayer = document.createElement('audio');
+            origPlayer.controls = true;
+            origPlayer.src = URL.createObjectURL(file);
+            resultDiv.innerHTML = '<div>🎧 original</div>';
+            resultDiv.appendChild(origPlayer);
+        };
+        processBtn.onclick = async ()=>{
+            if(!currentAudioBuffer){ fileStatusSpan.innerText="load wav first"; return; }
+            progressDiv.style.display="block";
+            let params = {
+                cutoff: parseFloat(cutoffSlider.value),
+                sharpness: parseFloat(sharpSlider.value),
+                n: parseFloat(nSlider.value),
+                thickness: parseFloat(thickSlider.value),
+                t0: window._currentT0 || 98.5,
+                coating: parseFloat(coatingSlider.value)
+            };
+            let filtered = await applyFilter(currentAudioBuffer, params);
+            let outBuffer = audioCtx.createBuffer(1, filtered.length, currentAudioBuffer.sampleRate);
+            outBuffer.copyToChannel(filtered, 0);
+            let wavBlob = bufferToWav(outBuffer);
+            let url = URL.createObjectURL(wavBlob);
+            let player = document.createElement('audio');
+            player.controls = true;
+            player.src = url;
+            let down = document.createElement('a');
+            down.href = url;
+            down.download = `UQD_${currentMode}.wav`;
+            down.innerText = '⬇️ download';
+            resultDiv.innerHTML = `<div>🌀 ${currentMode} filtered</div>`;
+            resultDiv.appendChild(player);
+            resultDiv.appendChild(down);
+            progressDiv.style.display="none";
+            // playhead simulation: update while playing
+            player.onplay = ()=>{
+                let interval = setInterval(()=>{
+                    if(player.paused || player.ended){ clearInterval(interval); playheadSpan.innerText = "▶️ playhead: —"; return; }
+                    let centroid = 2000 + 3000*Math.random(); // placeholder: would compute spectral centroid
+                    playheadSpan.innerText = `▶️ playhead: ~${Math.floor(centroid)} Hz (spectral focus)`;
+                    plotTransfer(); // redraw but overlay marker? optional
+                }, 300);
+            };
+        };
+        function bufferToWav(buf){
+            let samples = buf.getChannelData(0);
+            let buffer = new ArrayBuffer(44 + samples.length*2);
+            let view = new DataView(buffer);
+            let writeString=(off,str)=> { for(let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i)); };
+            writeString(0,'RIFF'); view.setUint32(4,36+samples.length*2,true);
+            writeString(8,'WAVE'); writeString(12,'fmt ');
+            view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,1,true);
+            view.setUint32(24,buf.sampleRate,true); view.setUint32(28,buf.sampleRate*2,true);
+            view.setUint16(32,2,true); view.setUint16(34,16,true);
+            writeString(36,'data'); view.setUint32(40,samples.length*2,true);
+            let off=44;
+            for(let i=0;i<samples.length;i++){
+                let s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(off, s<0 ? s*0x8000 : s*0x7FFF, true);
+                off+=2;
+            }
+            return new Blob([buffer], {type:'audio/wav'});
+        }
+        // mode switching
+        modeBtns.forEach(btn=>{
+            btn.onclick = ()=>{
+                modeBtns.forEach(b=>b.classList.remove('active'));
+                btn.classList.add('active');
+                currentMode = btn.getAttribute('data-mode');
+                let sharpGroup = document.getElementById('sharpnessGroup');
+                if(currentMode==='lens') sharpGroup.style.opacity='0.5';
+                else sharpGroup.style.opacity='1';
+                if(window._updatePlot) window._updatePlot();
+                drawOcclusionPlaceholder();
+            };
+        });
+        updateMaterialFromSelect();
+        drawOcclusionPlaceholder();
+        plotTransfer();
+        window._currentT0 = 98.5;
+        window._updatePlot = ()=>plotTransfer();
+    })();
+</script>
+</body>
+</html>
