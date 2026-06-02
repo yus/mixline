@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Quantum Lens Audio Filter - Material Occlusion Edition</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0f1e 0%, #0c1222 100%);
+            margin: 0;
+            padding: 20px;
+            color: #eef4ff;
+        }
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+            background: rgba(15, 25, 45, 0.65);
+            backdrop-filter: blur(12px);
+            border-radius: 2rem;
+            padding: 1.5rem;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        h1 {
+            font-size: 1.9rem;
+            margin: 0 0 0.25rem;
+            background: linear-gradient(135deg, #ffb347, #ff6b6b);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: inline-block;
+        }
+        .sub {
+            color: #9aa9c1;
+            border-left: 3px solid #ff6b6b;
+            padding-left: 12px;
+            margin: 10px 0 20px;
+        }
+        .mode-bar {
+            display: flex;
+            gap: 20px;
+            background: #0f1422cc;
+            padding: 12px 20px;
+            border-radius: 60px;
+            margin: 20px 0;
+            backdrop-filter: blur(4px);
+            justify-content: center;
+        }
+        .mode-btn {
+            background: none;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: bold;
+            padding: 10px 28px;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #b9c3e0;
+        }
+        .mode-btn.active {
+            background: #ff6b6b;
+            color: white;
+            box-shadow: 0 6px 14px rgba(255,107,107,0.3);
+        }
+        .grid-2col {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            margin: 25px 0;
+        }
+        .card {
+            background: rgba(10, 15, 30, 0.7);
+            border-radius: 1.5rem;
+            padding: 1rem;
+            flex: 1;
+            min-width: 240px;
+            border: 1px solid #2a3456;
+            transition: all 0.2s;
+        }
+        .material-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 15px;
+        }
+        .material-chip {
+            background: #1e2a3e;
+            border-radius: 80px;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-left: 4px solid #ffb347;
+        }
+        .material-chip.active {
+            background: #ff6b6b;
+            color: white;
+            border-left-color: white;
+            transform: scale(1.02);
+        }
+        .occlusion-map {
+            width: 100%;
+            height: 80px;
+            background: #0a0e1a;
+            border-radius: 20px;
+            margin: 12px 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+        .occ-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .param-slider {
+            margin: 18px 0;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin: 8px 0;
+            background: #2a3456;
+            height: 4px;
+            border-radius: 5px;
+        }
+        button {
+            background: #ff6b6b;
+            border: none;
+            padding: 14px 28px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 40px;
+            color: white;
+            width: 100%;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #ff5252;
+            transform: scale(0.98);
+        }
+        .status {
+            background: #0f172f;
+            padding: 12px;
+            border-radius: 28px;
+            margin: 15px 0;
+            font-size: 0.9rem;
+        }
+        canvas {
+            width: 100%;
+            height: auto;
+            background: #070b14;
+            border-radius: 20px;
+            margin-top: 20px;
+        }
+        audio {
+            width: 100%;
+            margin: 12px 0;
+        }
+        .flex-btns {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        footer {
+            font-size: 0.7rem;
+            text-align: center;
+            margin-top: 2rem;
+            opacity: 0.6;
+        }
+        @media (max-width: 700px) {
+            .container { padding: 1rem; }
+            .mode-btn { padding: 6px 18px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>⚛️ QUANTUM LENS · MATERIAL OCCLUSION</h1>
+    <div class="sub">optical raytracing + divergent integral ∫ 1/|x| dx ∞ | dual-mode audio filter</div>
+    
+    <!-- MODE SWITCH (LENS / BARRIER) -->
+    <div class="mode-bar">
+        <button class="mode-btn" data-mode="lens">🧹 LENS MODE · CLEAN / DENOISE</button>
+        <button class="mode-btn" data-mode="barrier">⚡ BARRIER MODE · DIVERGENT / GLITCH</button>
+    </div>
+
+    <div class="grid-2col">
+        <!-- LEFT PANEL: MATERIAL PRESETS + OCCLUSION TEXTURES -->
+        <div class="card">
+            <h3>🔬 LENS MATERIAL (Aalener optics)</h3>
+            <div id="materialContainer" class="material-grid">
+                <!-- dynamic material chips injected -->
+            </div>
+            <div style="margin-top: 20px;">
+                <div class="param-slider">
+                    <label>🔹 Refractive index (n): <span id="nValueDisplay">1.67</span></label>
+                    <input type="range" id="nSlider" min="1.4" max="2.1" step="0.01" value="1.67">
+                </div>
+                <div class="param-slider">
+                    <label>💎 Internal transmission T₀ (%/10mm): <span id="t0Display">98.5</span></label>
+                    <input type="range" id="t0Slider" min="80" max="100" step="0.5" value="98.5">
+                </div>
+            </div>
+            <div class="occlusion-map">
+                <canvas id="occCanvas" width="400" height="80" style="width:100%; height:80px; background:#0b0f1c;"></canvas>
+            </div>
+            <div style="font-size:0.8rem; text-align:center;">📌 occlusion texture = material absorption / dispersion map</div>
+        </div>
+        
+        <!-- RIGHT PANEL: FILTER PARAMETERS -->
+        <div class="card">
+            <h3>🎛️ QUANTUM FILTER ENGINE</h3>
+            <div class="param-slider">
+                <label>🎚️ Cutoff frequency (Hz): <span id="cutoffVal">3800</span></label>
+                <input type="range" id="cutoffSlider" min="200" max="10000" value="3800" step="10">
+            </div>
+            <div class="param-slider" id="sharpnessDiv">
+                <label>⚡ Barrier sharpness p (divergent slope): <span id="sharpVal">1.0</span></label>
+                <input type="range" id="sharpSlider" min="0.3" max="2.2" step="0.01" value="1.0">
+                <small>p=1.0 → ∫ 1/|x| dx diverges (infinite barrier)</small>
+            </div>
+            <div class="param-slider">
+                <label>💠 Coating / anti‑reflection (% residual): <span id="coatVal">0.8</span></label>
+                <input type="range" id="coatingSlider" min="0.1" max="4.5" step="0.1" value="0.8">
+            </div>
+            <div class="param-slider">
+                <label>📏 Lens thickness (mm): <span id="thickVal">2.2</span></label>
+                <input type="range" id="thickSlider" min="0.8" max="8" step="0.1" value="2.2">
+            </div>
+        </div>
+    </div>
+
+    <!-- FILE PICKER (fixed for mobile WAV) -->
+    <input type="file" id="audioFile" accept=".wav,.WAV,audio/wav,audio/x-wav" style="margin: 10px 0; padding: 10px;">
+    <div id="fileStatus" class="status">📁 waiting for WAV file (16‑bit PCM mono/stereo)</div>
+    
+    <button id="processBtn">🌀 APPLY QUANTUM LENS / BARRIER</button>
+    <div id="progress" style="display:none;" class="status">processing quantum field ...</div>
+    <div id="result"></div>
+    <canvas id="transferCanvas" width="800" height="280" style="width:100%; height:auto; margin-top: 20px;"></canvas>
+    <footer>⚛️ based on Aalener Optik-Formelrechner · Fresnel + T = τ^(d/10) · occlusion maps simulate material grain & dispersion</footer>
+</div>
+
+<script>
+    // ---------- OPTICS ENGINE (from Aalener Java) ----------
+    class OpticalLensCore {
+        static fresnelR(n1, n2) {
+            let r = (n1 - n2) / (n1 + n2);
+            return r * r;
+        }
+        static materialT(t0_percent, d_mm) {
+            if (t0_percent <= 0) return 0;
+            let T0 = t0_percent / 100;
+            return Math.pow(T0, d_mm / 10);
+        }
+        static lensTransmission(n_lens, thick_mm, t0_percent, coating_residual_percent) {
+            const n_air = 1.0;
+            let R1 = this.fresnelR(n_air, n_lens);
+            let T1 = 1 - R1;
+            // coating reduces reflection
+            let coatFactor = Math.max(0.1, 1 - (coating_residual_percent / 100));
+            T1 = 1 - (R1 * coatFactor);
+            let Tmat = this.materialT(t0_percent, thick_mm);
+            let R2 = this.fresnelR(n_lens, n_air);
+            let T2 = 1 - (R2 * coatFactor);
+            return T1 * Tmat * T2;
+        }
+    }
+
+    // UI state
+    let currentMode = "lens";   // 'lens' or 'barrier'
+    let currentAudioBuffer = null;
+    let audioCtx = null;
+
+    // Material presets with occlusion texture parameters
+    const materials = [
+        { name: "CR-39 (plastic)", n: 1.498, t0: 92.0, coatingRec: 1.2, texture: "smooth", occlusionStyle: "organic_diffuse" },
+        { name: "Polycarbonate", n: 1.586, t0: 89.5, coatingRec: 1.5, texture: "micro_rough", occlusionStyle: "grainy" },
+        { name: "High-index glass", n: 1.670, t0: 98.5, coatingRec: 0.7, texture: "dense", occlusionStyle: "refined" },
+        { name: "Crown Glass (classic)", n: 1.523, t0: 99.2, coatingRec: 0.9, texture: "crystal", occlusionStyle: "clean_spectral" },
+        { name: "Flint glass (heavy)", n: 1.805, t0: 97.0, coatingRec: 1.8, texture: "dense_abbe", occlusionStyle: "warm_dispersion" }
+    ];
+
+    let activeMaterial = materials[2]; // high-index default
+
+    // Helper: draw occlusion texture map (illustrative material grain / dispersion)
+    function drawOcclusionMap(material, nVal, t0Val) {
+        const canvas = document.getElementById('occCanvas');
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width = 400;
+        const h = canvas.height = 80;
+        ctx.fillStyle = "#0b0f1c";
+        ctx.fillRect(0, 0, w, h);
+        // occlusion pattern - simulates microscopic refraction variations
+        let patternSeed = (material.n * 100 + t0Val) % 17;
+        for (let i=0; i<240; i++) {
+            let x = (i * 31) % w;
+            let y = (Math.sin(i * 0.23 + patternSeed) * 15 + 40) % h;
+            let intensity = 40 + 30 * Math.sin(i * 0.1 + material.n);
+            let radius = 1.2 + (material.n % 1) * 2;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI*2);
+            ctx.fillStyle = `rgba(210, 190, 140, ${0.2 + (t0Val/400)})`;
+            ctx.fill();
+        }
+        // gradient overlay: dispersion direction
+        let grad = ctx.createLinearGradient(0,0,w,0);
+        grad.addColorStop(0, `rgba(255,180,80,0.2)`);
+        grad.addColorStop(1, `rgba(80,120,200,0.2)`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0,0,w,h);
+        ctx.fillStyle = "#eedd99";
+        ctx.font = "bold 11px monospace";
+        ctx.shadowBlur=0;
+        ctx.fillText(`⚛️ ${material.name} · n=${nVal.toFixed(3)}  T₀=${t0Val}%`, 12, 20);
+    }
+
+    function updateMaterialUI() {
+        let container = document.getElementById('materialContainer');
+        container.innerHTML = '';
+        materials.forEach(mat => {
+            let chip = document.createElement('div');
+            chip.className = 'material-chip';
+            if (activeMaterial.name === mat.name) chip.classList.add('active');
+            chip.innerHTML = `${mat.name} <span style="font-size:0.7rem;">n=${mat.n}</span>`;
+            chip.onclick = () => {
+                activeMaterial = mat;
+                document.getElementById('nSlider').value = mat.n;
+                document.getElementById('t0Slider').value = mat.t0;
+                document.getElementById('nValueDisplay').innerText = mat.n.toFixed(3);
+                document.getElementById('t0Display').innerText = mat.t0;
+                let coatRec = mat.coatingRec || 0.8;
+                document.getElementById('coatingSlider').value = coatRec;
+                document.getElementById('coatVal').innerText = coatRec;
+                updateMaterialUI();
+                drawOcclusionMap(mat, mat.n, mat.t0);
+            };
+            container.appendChild(chip);
+        });
+        drawOcclusionMap(activeMaterial, activeMaterial.n, activeMaterial.t0);
+    }
+
+    // ----------------- TRANSFER FUNCTION (DUAL MODE) -----------------
+    function getTransferFunction(freq_hz, sr, params) {
+        const cutoff = params.cutoffHz;
+        const sharpness = params.sharpness;
+        const n_lens = params.n;
+        const thickness = params.thickness;
+        const t0 = params.t0;
+        const coating = params.coating;
+        // optical transmission (lens core)
+        let T_optics = OpticalLensCore.lensTransmission(n_lens, thickness, t0, coating);
+        // frequency dependence: dispersion influence
+        let f_norm = Math.min(1.0, freq_hz / cutoff);
+        let dispFactor = 1 - 0.08 * Math.sin(f_norm * Math.PI);
+        T_optics = T_optics * (0.92 + 0.08 * dispFactor);
+        
+        if (currentMode === "lens") {
+            // SMOOTH LENS: 12dB/oct rolloff + slight resonance (clean)
+            let rolloff = 1.0 / (1.0 + Math.pow(f_norm, 3.8));
+            let resonance = 1 + 0.12 * Math.exp(-Math.pow((freq_hz/cutoff - 0.78)/0.12, 2));
+            let T_total = T_optics * rolloff * resonance;
+            return Math.min(0.99, T_total);
+        } 
+        else {   // BARRIER MODE – Divergent integral 1/|Δf|^p
+            let df = Math.abs(freq_hz - cutoff) / cutoff;
+            let safe = Math.max(df, 0.0005);
+            let T_barrier = 1.0 / Math.pow(safe, sharpness);
+            let maxBar = 1.0 / Math.pow(0.0005, sharpness);
+            T_barrier = T_barrier / (1 + T_barrier/maxBar);
+            let T_total = T_optics * T_barrier;
+            return Math.min(0.99, T_total);
+        }
+    }
+
+    // apply filter via FFT overlap-add (simplified but robust)
+    async function applyQuantumFilter(audioBuffer, params) {
+        const sr = audioBuffer.sampleRate;
+        let channelData = audioBuffer.getChannelData(0);
+        let len = channelData.length;
+        const fftSize = 4096;
+        const hop = fftSize/2;
+        
+        // build freq domain filter response
+        let filterFreq = new Array(fftSize/2+1);
+        for (let i=0; i<=fftSize/2; i++) {
+            let freq = i * sr / fftSize;
+            filterFreq[i] = getTransferFunction(freq, sr, params);
+        }
+        // impulse (via ifft symmetry)
+        let filterIR = new Array(fftSize);
+        for (let i=0; i<=fftSize/2; i++) {
+            filterIR[i] = filterFreq[i];
+            if (i>0 && i<fftSize/2) filterIR[fftSize-i] = filterFreq[i];
+        }
+        // window for smoother
+        for (let i=0; i<fftSize; i++) {
+            filterIR[i] *= (0.5 - 0.5*Math.cos(2*Math.PI*i/(fftSize-1)));
+        }
+        // overlap-add convolution
+        let output = new Float32Array(len);
+        for (let start=0; start < len - fftSize; start += hop) {
+            for (let j=0; j<fftSize; j++) {
+                output[start+j] += channelData[start+j] * filterIR[j];
+            }
+        }
+        // normalize to avoid clipping, preserve rms approx
+        let maxOut = 0;
+        for (let i=0; i<len; i++) if (Math.abs(output[i])>maxOut) maxOut=Math.abs(output[i]);
+        if (maxOut>0.95) for (let i=0; i<len; i++) output[i] *= 0.9/maxOut;
+        return output;
+    }
+
+    // UI binding and processing
+    document.getElementById('nSlider').addEventListener('input', (e) => {
+        let val = parseFloat(e.target.value);
+        document.getElementById('nValueDisplay').innerText = val.toFixed(3);
+        activeMaterial.n = val;
+        drawOcclusionMap(activeMaterial, val, parseFloat(document.getElementById('t0Slider').value));
+    });
+    document.getElementById('t0Slider').addEventListener('input', (e) => {
+        let val = parseFloat(e.target.value);
+        document.getElementById('t0Display').innerText = val;
+        drawOcclusionMap(activeMaterial, parseFloat(document.getElementById('nSlider').value), val);
+    });
+    document.getElementById('cutoffSlider').oninput = () => document.getElementById('cutoffVal').innerText = document.getElementById('cutoffSlider').value;
+    document.getElementById('sharpSlider').oninput = () => document.getElementById('sharpVal').innerText = parseFloat(document.getElementById('sharpSlider').value).toFixed(2);
+    document.getElementById('coatingSlider').oninput = () => document.getElementById('coatVal').innerText = parseFloat(document.getElementById('coatingSlider').value).toFixed(1);
+    document.getElementById('thickSlider').oninput = () => document.getElementById('thickVal').innerText = parseFloat(document.getElementById('thickSlider').value).toFixed(1);
+
+    // Mode toggle UI
+    const modeBtns = document.querySelectorAll('.mode-btn');
+    modeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            currentMode = btn.getAttribute('data-mode');
+            modeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            let sharpDiv = document.getElementById('sharpnessDiv');
+            if (currentMode === 'lens') sharpDiv.style.opacity = '0.5';
+            else sharpDiv.style.opacity = '1';
+        });
+    });
+    document.querySelector('.mode-btn[data-mode="lens"]').classList.add('active');
+    
+    // Audio file loading
+    const fileInput = document.getElementById('audioFile');
+    const fileStatus = document.getElementById('fileStatus');
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        fileStatus.innerHTML = `📂 loading ${file.name} ...`;
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const arrayBuf = await file.arrayBuffer();
+        currentAudioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+        fileStatus.innerHTML = `✅ ${file.name} | ${currentAudioBuffer.duration.toFixed(1)}s | ${currentAudioBuffer.sampleRate} Hz`;
+        let originalPlayer = document.createElement('audio');
+        originalPlayer.controls = true;
+        originalPlayer.src = URL.createObjectURL(file);
+        document.getElementById('result').innerHTML = '<h4>🎧 Original</h4>';
+        document.getElementById('result').appendChild(originalPlayer);
+    });
+    
+    // Process
+    document.getElementById('processBtn').onclick = async () => {
+        if (!currentAudioBuffer) { fileStatus.innerHTML = '❌ no WAV loaded'; return; }
+        const progress = document.getElementById('progress');
+        progress.style.display = 'block';
+        try {
+            let params = {
+                cutoffHz: parseFloat(document.getElementById('cutoffSlider').value),
+                sharpness: parseFloat(document.getElementById('sharpSlider').value),
+                n: parseFloat(document.getElementById('nSlider').value),
+                thickness: parseFloat(document.getElementById('thickSlider').value),
+                t0: parseFloat(document.getElementById('t0Slider').value),
+                coating: parseFloat(document.getElementById('coatingSlider').value)
+            };
+            let filteredData = await applyQuantumFilter(currentAudioBuffer, params);
+            let outBuffer = audioCtx.createBuffer(1, filteredData.length, currentAudioBuffer.sampleRate);
+            outBuffer.copyToChannel(filteredData, 0);
+            const wavBlob = bufferToWav(outBuffer);
+            const url = URL.createObjectURL(wavBlob);
+            const resultDiv = document.getElementById('result');
+            let audioPlayer = document.createElement('audio');
+            audioPlayer.controls = true;
+            audioPlayer.src = url;
+            let downloadLink = document.createElement('a');
+            downloadLink.href = url;
+            downloadLink.download = `quantum_${currentMode}_lens.wav`;
+            downloadLink.innerHTML = '⬇️ download filtered WAV';
+            downloadLink.style.display = 'inline-block';
+            downloadLink.style.margin = '10px';
+            resultDiv.innerHTML = `<h4>🌀 ${currentMode.toUpperCase()} MODE result</h4>`;
+            resultDiv.appendChild(audioPlayer);
+            resultDiv.appendChild(downloadLink);
+            // Plot transfer function
+            plotTransferCurve(params);
+        } catch(e) { fileStatus.innerHTML = `error: ${e.message}`; }
+        progress.style.display = 'none';
+    };
+    
+    function bufferToWav(audioBuffer) {
+        let samples = audioBuffer.getChannelData(0);
+        let buffer = new ArrayBuffer(44 + samples.length*2);
+        let view = new DataView(buffer);
+        writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + samples.length*2, true);
+        writeString(view, 8, 'WAVE');
+        writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, audioBuffer.sampleRate, true);
+        view.setUint32(28, audioBuffer.sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeString(view, 36, 'data');
+        view.setUint32(40, samples.length*2, true);
+        let offset = 44;
+        for (let i=0; i<samples.length; i++) {
+            let s = Math.max(-1, Math.min(1, samples[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            offset += 2;
+        }
+        return new Blob([buffer], {type: 'audio/wav'});
+    }
+    function writeString(view, offset, str) { for (let i=0;i<str.length;i++) view.setUint8(offset+i, str.charCodeAt(i)); }
+    
+    function plotTransferCurve(params) {
+        let canvas = document.getElementById('transferCanvas');
+        let ctx = canvas.getContext('2d');
+        let w = canvas.width = 800;
+        let h = canvas.height = 280;
+        ctx.fillStyle = "#070b14";
+        ctx.fillRect(0,0,w,h);
+        ctx.beginPath();
+        let sr = 44100;
+        let first = true;
+        for (let i=0; i<=w; i++) {
+            let freq = (i/w) * 12000;
+            let T = getTransferFunction(freq, sr, params);
+            let x = i;
+            let y = h - 20 - (T * (h-50));
+            if (first) { ctx.moveTo(x,y); first=false; }
+            else ctx.lineTo(x,y);
+        }
+        ctx.strokeStyle = currentMode === 'lens' ? "#6ee7b7" : "#ffaa66";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.fillStyle = "#aaa";
+        ctx.font = "10px monospace";
+        ctx.fillText(`cutoff ${params.cutoffHz} Hz  |  mode: ${currentMode}  |  n=${params.n.toFixed(2)}  |  p=${params.sharpness}`, 20, h-8);
+    }
+    
+    // initial material presets
+    updateMaterialUI();
+    document.getElementById('nSlider').value = activeMaterial.n;
+    document.getElementById('t0Slider').value = activeMaterial.t0;
+    document.getElementById('nValueDisplay').innerText = activeMaterial.n;
+    document.getElementById('t0Display').innerText = activeMaterial.t0;
+    drawOcclusionMap(activeMaterial, activeMaterial.n, activeMaterial.t0);
+</script>
+</body>
+</html>
